@@ -25,11 +25,11 @@ public class OssExcelTest {
      */
     private static void customPageExport() throws InterruptedException {
         ProgressbarContext context = new ProgressbarContext();
-        int count = 1000000;
+        int count = 10000000;
         new Thread(() -> {
             try {
                 ExcelUtil.buildSimpleOssDownLoadProcessorBuilder(() -> count
-                                , 2000, 50000, null, context)
+                                , 2000, 500000, null, context)
                         .ossAction(inputStream -> {
                             //通过inputStream上传OSS操作
                             System.out.println("开始上传OSS：inputStream" + inputStream);
