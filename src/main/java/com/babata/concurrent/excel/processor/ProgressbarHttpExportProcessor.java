@@ -13,8 +13,7 @@ import java.util.function.Supplier;
 
 /**
  * 提供查询进度的http下载excel
- * @param <E>
- * @param <R>
+ * @author  zqj
  */
 public class ProgressbarHttpExportProcessor<E, R extends Collection<E>> extends HttpExcelDownLoadOrderLyProcessor<E, R> {
 

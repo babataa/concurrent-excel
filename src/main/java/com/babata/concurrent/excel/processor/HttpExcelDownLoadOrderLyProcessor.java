@@ -14,8 +14,7 @@ import java.util.function.Supplier;
 
 /**
  * http excel导出
- * @param <E>
- * @param <R>
+ * @author  zqj
  */
 public class HttpExcelDownLoadOrderLyProcessor<E, R extends Collection<E>> extends ExcelUtil.AbstractExcelDownLoadOrderLyProcessor<E, R> {
 

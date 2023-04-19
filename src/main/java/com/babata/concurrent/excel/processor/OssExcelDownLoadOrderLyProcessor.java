@@ -19,8 +19,7 @@ import java.util.function.Supplier;
 
 /**
  * OSS excel导出
- * @param <E>
- * @param <R>
+ * @author  zqj
  */
 public class OssExcelDownLoadOrderLyProcessor<E, R extends Collection<E>> extends ProgressbarHttpExportProcessor<E, R> {
 
