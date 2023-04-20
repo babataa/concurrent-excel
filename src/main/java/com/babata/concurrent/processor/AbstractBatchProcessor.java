@@ -56,6 +56,8 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
     private int partitionSize = 0;
 
     protected boolean partitionAble = false;
+    //并发分片限制，默认-1无限制
+    protected int partitionLimit = -1;
 
     static {
         try {
@@ -96,6 +98,11 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
         this.partition = (int) Math.ceil(getTotal()*1f/partitionSize);
         this.partitionSize = partitionSize/batchSize;
         this.partitionAble = true;
+        return this;
+    }
+
+    public AbstractBatchProcessor setPartitionLimit(int partitionLimit) {
+        this.partitionLimit = partitionLimit;
         return this;
     }
 
@@ -223,6 +230,7 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
         int localPageNum = pageNum;
         int partitionSize0 = partitionSize;
         int partition0 = partition;
+        int partitionLimit0 = partitionLimit;
         if(localBatchCount == 1) {
             runSingle(handler, 0);
             return;
@@ -247,7 +255,7 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
         for (int i = 0; i < posArr.length; i++) {
             posArr[i] = -1;
         }
-        PartitionUtil.partition(localBatchCount, partitionSize0, node -> {
+        PartitionUtil.partition(localBatchCount, partitionSize0, partitionLimit0 != -1 && partition0>partitionLimit0?partitionLimit0*partitionSize0:partition0*partitionSize0, node -> {
             e.execute(() -> {
                 boolean isOutCountDown = false;
                 try {

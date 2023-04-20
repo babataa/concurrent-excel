@@ -181,22 +181,26 @@ public class ExcelUtil {
             super(batchSize, select);
             this.rowLimit = rowLimit;
             this.orderControl = orderControl;
+            setPartitionLimit(20);
         }
 
         public AbstractExcelDownLoadOrderLyProcessor(int batchSize, int rowLimit, Supplier<Integer> count, Function<BatchParam, R> customSelect, boolean orderControl) {
             super(count, customSelect, batchSize, BatchDispatchStrategyEnum.CUSTOM);
             this.rowLimit = rowLimit;
             this.orderControl = orderControl;
+            setPartitionLimit(20);
         }
 
         public AbstractExcelDownLoadOrderLyProcessor(int batchSize, Supplier<R> select, int rowLimit) {
             super(batchSize, select);
             this.rowLimit = rowLimit;
+            setPartitionLimit(20);
         }
 
         public AbstractExcelDownLoadOrderLyProcessor(int batchSize, int rowLimit, Supplier<Integer> count, Function<BatchParam, R> customSelect) {
             super(count, customSelect, batchSize, BatchDispatchStrategyEnum.CUSTOM);
             this.rowLimit = rowLimit;
+            setPartitionLimit(20);
         }
 
         public int getRowLimit() {

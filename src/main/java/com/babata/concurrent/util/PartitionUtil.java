@@ -23,9 +23,10 @@ public class PartitionUtil {
      * 自动分片
      * @param batchCount 批次总数
      * @param partitionSize 每片包含的批次数
+     * @param limit 并发批次数量
      * @param doAction 分片后回调
      */
-    public static void partition(int batchCount, int partitionSize, Consumer<Node> doAction) {
+    public static void partition(int batchCount, int partitionSize, int limit, Consumer<Node> doAction) {
         Node focus = new Node(0);
         Node next = null;
         for (int i = 1; i < batchCount; i++) {
@@ -41,6 +42,15 @@ public class PartitionUtil {
         int pos = 0;
         int turns = 0;
         while(focus != null) {
+            if(focus.index % limit == 0) {
+                pos = 0;
+                if(focus != first) {
+                    turns++;
+                    focus = prev = first;
+                    continue;
+                }
+                turns = 0;
+            }
             Node expectNext = focus.next;
             if(pos++ % (partitionSize - turns) == 0) {
                 //执行
