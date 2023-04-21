@@ -25,11 +25,12 @@ public class OssExcelTest {
      */
     private static void customPageExport() throws InterruptedException {
         ProgressbarContext context = new ProgressbarContext();
-        int count = 10000000;
+        int count = 1000001;
+        long start = System.currentTimeMillis();
         new Thread(() -> {
             try {
                 ExcelUtil.buildSimpleOssDownLoadProcessorBuilder(() -> count
-                                , 2000, 500000, null, context)
+                                , 2000, 50000, null, context)
                         .ossAction(inputStream -> {
                             //通过inputStream上传OSS操作
                             System.out.println("开始上传OSS：inputStream" + inputStream);
@@ -41,9 +42,14 @@ public class OssExcelTest {
                             }
                             System.out.println("导出完成");
                         })
+                        //进度条粒度，50代表每完成2%刷新一次进度，默认20，即每完成5%刷新一次进度
+                        .processPart(50)
+                        //自定义分页获取数据的方法
                         .customSelect(batchParam -> DataFactory.get(batchParam, count))
-                        //分片方式，显示的进度可能会有一定延迟，因为并发下载excel是以倒数第二个文件进度为准，有可能第二个文件先完成
+                        //分片并发任务方式，一片即一个文件，并发任务会片与片之间隔离分配，实现并发无锁方式同时写入多个excel，且能保证写入数据有序性
                         .partition(true)
+                        //并发分片的限制，即同时写的文件数量限制在设定的值，开启分片后默认20
+                        .partitionLimit(20)
                         .build()
                         .addExceptionHandler(exception -> {
                             //异步异常处理
@@ -58,6 +64,7 @@ public class OssExcelTest {
             Thread.sleep(1000L);
         }
         System.out.println(context.getProgress());
+        System.out.println(System.currentTimeMillis() - start);
     }
 
     /**

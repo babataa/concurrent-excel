@@ -94,14 +94,14 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
         init();
     }
 
-    public AbstractBatchProcessor setPartition(int partitionSize) {
+    public AbstractBatchProcessor<E, R> partition(int partitionSize) {
         this.partition = (int) Math.ceil(getTotal()*1f/partitionSize);
         this.partitionSize = partitionSize/batchSize;
         this.partitionAble = true;
         return this;
     }
 
-    public AbstractBatchProcessor setPartitionLimit(int partitionLimit) {
+    public AbstractBatchProcessor<E, R> partitionLimit(int partitionLimit) {
         this.partitionLimit = partitionLimit;
         return this;
     }
@@ -513,7 +513,7 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
         }
     }
 
-    public AbstractBatchProcessor addExceptionHandler(Consumer<Exception> exceptionHandler) {
+    public AbstractBatchProcessor<E, R> addExceptionHandler(Consumer<Exception> exceptionHandler) {
         this.exceptionHandler = exceptionHandler;
         return this;
     }
@@ -526,7 +526,7 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
         return batchCount;
     }
 
-    public AbstractBatchProcessor setMaxRetryTime(int maxRetryTimes) {
+    public AbstractBatchProcessor<E, R> maxRetryTime(int maxRetryTimes) {
         this.maxRetryTimes = maxRetryTimes;
         return this;
     }

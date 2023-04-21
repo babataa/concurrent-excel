@@ -20,6 +20,7 @@ public abstract class AbstractBatchProcessorBuilder {
     protected Supplier<Integer> count;
     protected Function<BatchParam, Collection<? extends ExcelExportAble>> customSelect;
     protected boolean partition;
+    protected int partitionLimit;
 
     public AbstractBatchProcessorBuilder batchSize(int batchSize) {
         this.batchSize = batchSize;
@@ -46,6 +47,11 @@ public abstract class AbstractBatchProcessorBuilder {
         return this;
     }
 
+    public AbstractBatchProcessorBuilder partitionLimit(int partitionLimit) {
+        this.partitionLimit = partitionLimit;
+        return this;
+    }
+
     public AbstractBatchProcessorBuilder customSelect(Function<BatchParam, Collection<? extends ExcelExportAble>> customSelect) {
         this.customSelect = customSelect;
         return this;
@@ -54,7 +60,7 @@ public abstract class AbstractBatchProcessorBuilder {
     public AbstractBatchProcessor<? extends ExcelExportAble, Collection<? extends ExcelExportAble>> build() {
         AbstractBatchProcessor<? extends ExcelExportAble, Collection<? extends ExcelExportAble>> processor = newInstance();
         if(partition) {
-            processor.setPartition(rowLimit);
+            processor.partition(rowLimit);
         }
         return processor;
     }

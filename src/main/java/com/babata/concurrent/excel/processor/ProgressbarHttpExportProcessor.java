@@ -24,7 +24,7 @@ public class ProgressbarHttpExportProcessor<E, R extends Collection<E>> extends 
     /**
      * 进度条粒度
      */
-    private static final Integer DEFAULT_PROCESS_PART= 20;
+    private int processPart= 20;
 
     public ProgressbarHttpExportProcessor(int batchSize, Supplier<R> select, int rowLimit, ProgressbarContext progressbarContext, boolean orderControl) {
         super(batchSize, select, rowLimit, orderControl);
@@ -41,6 +41,11 @@ public class ProgressbarHttpExportProcessor<E, R extends Collection<E>> extends 
         return this;
     }
 
+    public ProgressbarHttpExportProcessor processPart(int processPart) {
+        this.processPart = processPart;
+        return this;
+    }
+
     @Override
     protected ExcelUtil.UploadContext generateContext() {
         return progressbarContext;
@@ -49,49 +54,55 @@ public class ProgressbarHttpExportProcessor<E, R extends Collection<E>> extends 
     @Override
     protected void prepareWrite(ExcelUtil.UploadContext uploadContext) {
         int partFlag = 1;
-        if(getBatchCount() > DEFAULT_PROCESS_PART) {
+        if(getBatchCount() > processPart) {
             //大于进度条粒度的，扩大粒度
-            partFlag = getBatchCount()/DEFAULT_PROCESS_PART;
+            partFlag = getBatchCount()/processPart;
         }
         progressbarContext.setPartFlag(partFlag);
     }
 
     @Override
     protected void afterWrite(ExcelUtil.UploadContext uploadContext, int taskIndex, ExcelUtil.WorkbookHolder workbookHolder) {
-        //如果是分页方式并且本片是倒数第二片，并且已写入完成，则置进度为100，非分片任务按任务index来计算
-        boolean canPartitionComplete = false;
-        if(partitionAble && (canPartitionComplete = Math.ceil(total*1f/getRowLimit()) - 2 == workbookHolder.getWbIndex()) && workbookHolder.done() || !partitionAble && taskIndex + 1 == getBatchCount()) {
-            progressbarContext.setProgress(100);
-        } else if(partitionAble || (taskIndex + 1) % progressbarContext.getPartFlag() == 0) {
-            //上传进度
-            if(partitionAble) {
-                if(!canPartitionComplete) {
-                    //如果是分片方式，以倒数第二个文件的进度作为整体进度
-                    return;
-                }
-                progressbarContext.setProgress(workbookHolder.calculateProcessRate());
-            } else {
-                progressbarContext.setProgress((taskIndex + 1)*100/getBatchCount());
+        ProgressbarContext context = progressbarContext;
+        int batchSize0 = batchSize;
+        if((taskIndex + 1) * batchSize0 % getRowLimit() == 0 || taskIndex >= total/batchSize0) {
+            int finishFileCount = context.getFinishFileCount().incrementAndGet();
+            if(finishFileCount == partition) {
+                context.setProgress(100);
             }
         }
-        if(uploadProgressAction != null) {
-            //用户可指定函数处理进度，如上传redis
-            uploadProgressAction.accept(uploadContext);
+        int finishCount = context.getFinishCount().incrementAndGet();
+        if (finishCount % context.getPartFlag() == 0) {
+            //上传进度
+            context.setProgress(finishCount*100/getBatchCount());
+            if(uploadProgressAction != null) {
+                //用户可指定函数处理进度，如上传redis
+                uploadProgressAction.accept(uploadContext);
+            }
         }
     }
 
     public static class ProgressbarHttpExportProcessorBuilder extends AbstractBatchProcessorBuilder {
 
-        private ProgressbarContext progressbarContext;
+        protected ProgressbarContext progressbarContext;
+
+        protected int processPart = 20;
 
         public ProgressbarHttpExportProcessorBuilder progressbarContext(ProgressbarContext progressbarContext) {
             this.progressbarContext = progressbarContext;
             return this;
         }
 
+        public ProgressbarHttpExportProcessorBuilder processPart(int processPart) {
+            this.processPart = processPart;
+            return this;
+        }
+
         @Override
         public ProgressbarHttpExportProcessor newInstance() {
-            return new ProgressbarHttpExportProcessor(batchSize, rowLimit, count, customSelect, progressbarContext, false);
+            return (ProgressbarHttpExportProcessor) new ProgressbarHttpExportProcessor(batchSize, rowLimit, count, customSelect, progressbarContext, true)
+                    .processPart(processPart)
+                    .partitionLimit(partitionLimit);
         }
     }
 }

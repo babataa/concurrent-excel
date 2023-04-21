@@ -66,21 +66,14 @@ public class OssExcelDownLoadOrderLyProcessor<E, R extends Collection<E>> extend
         }
     }
 
-    public static class OssExcelDownLoadOrderLyProcessorBuilder extends AbstractBatchProcessorBuilder {
+    public static class OssExcelDownLoadOrderLyProcessorBuilder extends ProgressbarHttpExportProcessorBuilder {
 
         private Executor executorForPipedConvert;
-
-        private ProgressbarContext progressbarContext;
 
         private Consumer<PipedInputStreamWithFinalExceptionCheck> ossAction;
 
         public OssExcelDownLoadOrderLyProcessorBuilder executorForPipedConvert(Executor executorForPipedConvert) {
             this.executorForPipedConvert = executorForPipedConvert;
-            return this;
-        }
-
-        public OssExcelDownLoadOrderLyProcessorBuilder progressbarContext(ProgressbarContext progressbarContext) {
-            this.progressbarContext = progressbarContext;
             return this;
         }
 
@@ -91,7 +84,9 @@ public class OssExcelDownLoadOrderLyProcessor<E, R extends Collection<E>> extend
 
         @Override
         public OssExcelDownLoadOrderLyProcessor newInstance() {
-            return new OssExcelDownLoadOrderLyProcessor(batchSize, rowLimit, count, customSelect, executorForPipedConvert, progressbarContext, ossAction, false);
+            return (OssExcelDownLoadOrderLyProcessor) new OssExcelDownLoadOrderLyProcessor(batchSize, rowLimit, count, customSelect, executorForPipedConvert, progressbarContext, ossAction, true)
+                    .processPart(processPart)
+                    .partitionLimit(partitionLimit);
         }
     }
 }

@@ -61,19 +61,8 @@ public class ExcelUtil {
      * @param rowLimit 每个sheet页的行数限制（一个文件只支持一个sheet页，多文件则打包成一个zip）
      * @return 处理器实例
      */
-    public static  <E extends ExcelExportAble, R extends List<E>> AbstractBatchProcessor<E, R> buildHttpDownLoadHandler(Supplier<R> select, int batchSize, int rowLimit) {
+    public static  <E extends ExcelExportAble, R extends List<E>> HttpExcelDownLoadOrderLyProcessor<E, R> buildHttpDownLoadHandler(Supplier<R> select, int batchSize, int rowLimit) {
         return new HttpExcelDownLoadOrderLyProcessor<>(batchSize, select, rowLimit, true);
-    }
-
-    /**
-     * 构建http下载excel文件处理器（分片下载，多文件并发导出，超大文件导出有显著效率提升）
-     * @param select 获取写入excel的数据（注：查询时只对第一个sql分页）
-     * @param batchSize 每次查询的数量
-     * @param rowLimit 每个sheet页的行数限制（一个文件只支持一个sheet页，多文件则打包成一个zip）
-     * @return
-     */
-    public static  <E extends ExcelExportAble, R extends List<E>> AbstractBatchProcessor<E, R> buildPartitionHttpDownLoadHandler(Supplier<R> select, int batchSize, int rowLimit) {
-        return (HttpExcelDownLoadOrderLyProcessor<E, R>) new HttpExcelDownLoadOrderLyProcessor<>(batchSize, select, rowLimit, true).setPartition(rowLimit);
     }
 
     /**
@@ -130,8 +119,8 @@ public class ExcelUtil {
      */
     public static OssExcelDownLoadOrderLyProcessor.OssExcelDownLoadOrderLyProcessorBuilder buildSimpleOssDownLoadProcessorBuilder(Supplier<Integer> count, int batchSize, int rowLimit, Executor e, ProgressbarContext uploadContext) {
         return (OssExcelDownLoadOrderLyProcessor.OssExcelDownLoadOrderLyProcessorBuilder) new OssExcelDownLoadOrderLyProcessor.OssExcelDownLoadOrderLyProcessorBuilder()
-                .progressbarContext(uploadContext)
                 .executorForPipedConvert(e)
+                .progressbarContext(uploadContext)
                 .batchSize(batchSize)
                 .rowLimit(rowLimit)
                 .count(count);
@@ -181,26 +170,33 @@ public class ExcelUtil {
             super(batchSize, select);
             this.rowLimit = rowLimit;
             this.orderControl = orderControl;
-            setPartitionLimit(20);
+            partitionLimit(20);
         }
 
         public AbstractExcelDownLoadOrderLyProcessor(int batchSize, int rowLimit, Supplier<Integer> count, Function<BatchParam, R> customSelect, boolean orderControl) {
             super(count, customSelect, batchSize, BatchDispatchStrategyEnum.CUSTOM);
             this.rowLimit = rowLimit;
             this.orderControl = orderControl;
-            setPartitionLimit(20);
+            partitionLimit(20);
         }
 
         public AbstractExcelDownLoadOrderLyProcessor(int batchSize, Supplier<R> select, int rowLimit) {
             super(batchSize, select);
             this.rowLimit = rowLimit;
-            setPartitionLimit(20);
+            partitionLimit(20);
         }
 
         public AbstractExcelDownLoadOrderLyProcessor(int batchSize, int rowLimit, Supplier<Integer> count, Function<BatchParam, R> customSelect) {
             super(count, customSelect, batchSize, BatchDispatchStrategyEnum.CUSTOM);
             this.rowLimit = rowLimit;
-            setPartitionLimit(20);
+            partitionLimit(20);
+        }
+
+        public AbstractExcelDownLoadOrderLyProcessor<E, R> partition(boolean partition) {
+            if(partition) {
+                partition(rowLimit);
+            }
+            return this;
         }
 
         public int getRowLimit() {

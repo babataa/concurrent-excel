@@ -2,6 +2,8 @@ package com.babata.concurrent.excel.context;
 
 import com.babata.concurrent.excel.ExcelUtil;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * 进度条context
  * @author  zqj
@@ -12,6 +14,16 @@ public class ProgressbarContext extends ExcelUtil.UploadContext {
      * 进度条
      */
     private volatile int progress;
+
+    /**
+     * 完成数量
+     */
+    private AtomicInteger finishCount = new AtomicInteger();
+
+    /**
+     * 完成文件数量
+     */
+    private AtomicInteger finishFileCount = new AtomicInteger();
 
     /**
      * 进度条粒度
@@ -32,5 +44,13 @@ public class ProgressbarContext extends ExcelUtil.UploadContext {
 
     public void setPartFlag(int partFlag) {
         this.partFlag = partFlag;
+    }
+
+    public AtomicInteger getFinishCount() {
+        return finishCount;
+    }
+
+    public AtomicInteger getFinishFileCount() {
+        return finishFileCount;
     }
 }

@@ -17,12 +17,16 @@ public class ProcessBarExcelTest {
     /**
      * 带进度查询的http直接导出
      */
-    private static void export1() {
+    private static void export1() throws InterruptedException {
         ProgressbarContext context = new ProgressbarContext();
         ExcelUtil.buildBarHttpDownLoadHandler(() -> {
                     //查库，分页插件只对方法的第一条sql生效
                     return null;
                 }, 2000, 50000, context)
+                //开启分片下载，一片即一个文件，并发任务会片与片之间隔离分配，实现并发无锁方式同时写入多个excel，且能保证写入数据有序性
+                .partition(true)
+                //并发分片的限制，即同时写的文件数量限制在设定的值，开启分片后默认20
+                .partitionLimit(10)
                 .execute(null, ThreadPool.pool);
         System.out.println("当前进度" + context.getProgress());
     }
@@ -41,6 +45,10 @@ public class ProcessBarExcelTest {
             //分页查询（batchIndex：页数，batchSize：每页数量，batchStart：当前页开始的条数）
                     return new ArrayList<>();
                 })
+                //开启分片下载，一片即一个文件，并发任务会片与片之间隔离分配，实现并发无锁方式同时写入多个excel，且能保证写入数据有序性
+                .partition(true)
+                //并发分片的限制，即同时写的文件数量限制在设定的值，开启分片后默认20
+                .partitionLimit(10)
                 .build()
                 .execute(null, ThreadPool.pool);
         System.out.println("当前进度" + context.getProgress());

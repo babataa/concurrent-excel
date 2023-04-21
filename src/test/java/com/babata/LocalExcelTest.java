@@ -71,15 +71,23 @@ public class LocalExcelTest {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        int count = 10000001;
+        int count = 1000001;
         long start = System.currentTimeMillis();
         new TestExcelDownLoadOrderLyProcessor.TestExcelDownLoadOrderLyProcessorBuilder()
                 .batchSize(2000)
-                .rowLimit(500000)
+                .rowLimit(50000)
+                //获取总数的方法
                 .count(() -> count)
+                //自定义分页获取数据的方法
                 .customSelect(batchParam -> DataFactory.get(batchParam, count))
+                //开启分片下载，一片即一个文件，并发任务会片与片之间隔离分配，实现并发无锁方式同时写入多个excel，且能保证写入数据有序性
                 .partition(true)
+                //同时限制10个文件并发写入
+                .partitionLimit(10)
                 .build()
+                .addExceptionHandler(exception -> {
+                    //异常处理
+                })
                 .execute(null, ThreadPool.pool);
         System.out.println(System.currentTimeMillis() - start);
     }

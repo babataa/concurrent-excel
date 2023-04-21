@@ -42,7 +42,8 @@ public class HttpExcelDownLoadOrderLyProcessor<E, R extends Collection<E>> exten
 
         @Override
         public AbstractBatchProcessor newInstance() {
-            return new HttpExcelDownLoadOrderLyProcessor(batchSize, rowLimit, count, customSelect, true);
+            return new HttpExcelDownLoadOrderLyProcessor(batchSize, rowLimit, count, customSelect, true)
+                    .partitionLimit(partitionLimit);
         }
     }
 }
