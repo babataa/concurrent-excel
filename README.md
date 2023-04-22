@@ -27,7 +27,7 @@ private static void export1() throws InterruptedException {
             //异步异常处理，并发任务只会进入一次异常处理
         })
         //传入pool线程池
-        .execute(null, pool);
+        .execute(pool);
 }
 ```
 #### 手动分页导出
@@ -46,7 +46,7 @@ private static void export3() throws InterruptedException {
         //并发分片的限制，即同时写的文件数量限制在设定的值，开启分片后默认20
         .partitionLimit(10)
         .build()
-        .execute(null, ThreadPool.pool);
+        .execute(ThreadPool.pool);
     }
 ```
 ### 超大文件上传OSS
@@ -83,7 +83,7 @@ private static void customPageExport() throws InterruptedException {
                             //异步异常处理
                             context.setProgress(-1);
                         })
-                        .execute(null, ThreadPool.pool);
+                        .execute(ThreadPool.pool);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
