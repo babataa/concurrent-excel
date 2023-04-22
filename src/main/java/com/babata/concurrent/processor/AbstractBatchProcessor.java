@@ -9,7 +9,9 @@ import org.springframework.util.CollectionUtils;
 import sun.misc.Unsafe;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -33,7 +35,7 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
     //数据总数
     protected int total;
     //异常回调
-    private Consumer<Exception> exceptionHandler;
+    private List<Consumer<Exception>> exceptionHandlers = new ArrayList<>();
     //任务取消标识
     private AtomicBoolean cancel = new AtomicBoolean(false);
     private static Unsafe UNSAFE;
@@ -346,8 +348,10 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
                 handler.accept(r, index);
             }
         } catch (Exception exception) {
-            if(exceptionHandler != null) {
-                exceptionHandler.accept(exception);
+            if(!CollectionUtils.isEmpty(exceptionHandlers)) {
+                for (Consumer<Exception> exceptionHandler : exceptionHandlers) {
+                    exceptionHandler.accept(exception);
+                }
             }
             throw exception;
         }
@@ -501,8 +505,10 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
     private void doCancel(Thread[] stack, int startIndex, Exception e) {
         int realStartIndex = Math.min(startIndex, pos);
         //取消任务
-        if(cancel.compareAndSet(false, true) && exceptionHandler != null) {
-            exceptionHandler.accept(e);
+        if(cancel.compareAndSet(false, true) && !CollectionUtils.isEmpty(exceptionHandlers)) {
+            for (Consumer<Exception> exceptionHandler : exceptionHandlers) {
+                exceptionHandler.accept(e);
+            }
         }
         //终止其他线程
         for (int j = realStartIndex + 1; j < realStartIndex + stack.length; j++) {
@@ -514,7 +520,7 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
     }
 
     public AbstractBatchProcessor<E, R> addExceptionHandler(Consumer<Exception> exceptionHandler) {
-        this.exceptionHandler = exceptionHandler;
+        this.exceptionHandlers.add(exceptionHandler);
         return this;
     }
 
@@ -531,7 +537,7 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
         return this;
     }
 
-    public void execute(BiConsumer<R, Integer> handler, ThreadPoolExecutor e) throws InterruptedException {
+    public void execute(ThreadPoolExecutor e) throws InterruptedException {
         throw new RuntimeException("该方法需要子类实现");
     }
 }

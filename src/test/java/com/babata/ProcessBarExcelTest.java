@@ -27,7 +27,7 @@ public class ProcessBarExcelTest {
                 .partition(true)
                 //并发分片的限制，即同时写的文件数量限制在设定的值，开启分片后默认20
                 .partitionLimit(10)
-                .execute(null, ThreadPool.pool);
+                .execute(ThreadPool.pool);
         System.out.println("当前进度" + context.getProgress());
     }
 
@@ -50,7 +50,7 @@ public class ProcessBarExcelTest {
                 //并发分片的限制，即同时写的文件数量限制在设定的值，开启分片后默认20
                 .partitionLimit(10)
                 .build()
-                .execute(null, ThreadPool.pool);
+                .execute(ThreadPool.pool);
         System.out.println("当前进度" + context.getProgress());
     }
 }

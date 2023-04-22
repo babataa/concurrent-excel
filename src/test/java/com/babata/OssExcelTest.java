@@ -51,7 +51,7 @@ public class OssExcelTest {
                         .addExceptionHandler(exception -> {
                             context.setProgress(-1);
                         })
-                        .execute(null, ThreadPool.pool);
+                        .execute(ThreadPool.pool);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

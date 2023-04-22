@@ -32,7 +32,7 @@ public class HttpExcelTest {
                 .addExceptionHandler(exception -> {
                     //异步异常处理，并发任务只会进入一次异常处理
                 })
-                .execute(null, ThreadPool.pool);
+                .execute(ThreadPool.pool);
     }
 
     /**
@@ -54,6 +54,6 @@ public class HttpExcelTest {
                 //并发分片的限制，即同时写的文件数量限制在设定的值，开启分片后默认20
                 .partitionLimit(10)
                 .build()
-                .execute(null, ThreadPool.pool);
+                .execute(ThreadPool.pool);
     }
 }

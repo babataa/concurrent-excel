@@ -89,7 +89,7 @@ public class LocalExcelTest {
                 .addExceptionHandler(exception -> {
                     //异常处理
                 })
-                .execute(null, ThreadPool.pool);
+                .execute(ThreadPool.pool);
         System.out.println(System.currentTimeMillis() - start);
     }
 

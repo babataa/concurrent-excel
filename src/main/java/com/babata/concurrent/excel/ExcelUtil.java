@@ -232,7 +232,7 @@ public class ExcelUtil {
         }
 
         @Override
-        public void execute(BiConsumer<R, Integer> handler, ThreadPoolExecutor e) {
+        public void execute(ThreadPoolExecutor e) {
             UploadContext uploadContext = generateContext();
             WorkbookHolder workbookHolder = new WorkbookHolder();
             prepareWrite(uploadContext);
@@ -240,6 +240,11 @@ public class ExcelUtil {
                 try {
                     if(partitionAble) {
                         Map<Integer, WorkbookHolder> wbMap = new ConcurrentHashMap<>();
+                        addExceptionHandler(exception -> {
+                            wbMap.forEach((wbIndex, workbookHolder0) -> {
+                                closeWorkbook(workbookHolder0.workbook);
+                            });
+                        });
                         super.batchPartitionExecuteOrderly((r, index) -> {
                             beforeWrite(uploadContext);
                             WorkbookHolder workbookHolder0 = writeWorkbook(rowLimit, batchSize, index, wbMap, (List<ExcelExportAble>) r, doWorkbook, uploadContext, getTotal());
@@ -248,6 +253,9 @@ public class ExcelUtil {
                             afterWrite(uploadContext, index, workbookHolder0);
                         }, e);
                     } else {
+                        addExceptionHandler(exception -> {
+                            closeWorkbook(workbookHolder.workbook);
+                        });
                         super.batchExecuteOrderly((r, index) -> {
                             beforeWrite(uploadContext);
                             writeWorkbook(rowLimit, workbookHolder, (List<ExcelExportAble>) r, doWorkbook, uploadContext, false);
