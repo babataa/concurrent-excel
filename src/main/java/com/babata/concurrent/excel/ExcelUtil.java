@@ -8,13 +8,11 @@ import com.babata.concurrent.excel.processor.ProgressbarHttpExportProcessor;
 import com.babata.concurrent.excel.resolve.ColumnContext;
 import com.babata.concurrent.excel.resolve.ColumnHeadResolve;
 import com.babata.concurrent.param.BatchParam;
-import com.babata.concurrent.processor.AbstractBatchProcessor;
 import com.babata.concurrent.processor.builder.AbstractBatchProcessorBuilder;
 import com.babata.concurrent.processor.strategy.BatchDispatchStrategyEnum;
 import com.babata.concurrent.processor.strategy.BatchDispatchStrategyProcessor;
 import com.babata.concurrent.util.FileUtils;
 import com.babata.concurrent.util.HttpContextUtil;
-import com.babata.concurrent.util.IoUtil;
 import com.babata.concurrent.util.NumberUtil;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
@@ -722,6 +720,9 @@ public class ExcelUtil {
             return errorMsg;
         }
 
+        public void setErrorMsg(String errorMsg) {
+            this.errorMsg = errorMsg;
+        }
     }
 
     /**

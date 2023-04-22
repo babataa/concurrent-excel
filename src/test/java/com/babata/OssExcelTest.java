@@ -6,9 +6,6 @@ import com.babata.concurrent.util.FileUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 public class OssExcelTest {
 
@@ -52,14 +49,14 @@ public class OssExcelTest {
                         .partitionLimit(20)
                         .build()
                         .addExceptionHandler(exception -> {
-                            //异步异常处理
+                            context.setProgress(-1);
                         })
                         .execute(null, ThreadPool.pool);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }).start();;
-        while(context.getProgress() != 100) {
+        while(context.getProgress() != 100 && context.getProgress() != -1) {
             System.out.println("当前进度：" + context.getProgress());
             Thread.sleep(1000L);
         }

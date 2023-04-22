@@ -295,7 +295,7 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
         AtomicInteger swap = swaps[posIndex];
         if(cancel.get()) {
             setAt(stack, offsetIndex, null);
-            throw new InterruptedException();
+            throw new InterruptedException("task is cancel");
         }
         int next = offsetIndex + 1;
         int count = index/partitionSize0==partition0-1?batchCount-partitionSize0*(partition0-1):partitionSize0;
@@ -320,14 +320,14 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
             setAt(stack, offsetIndex, currentThd);
             if(cancel.get()) {
                 setAt(stack, offsetIndex, null);
-                throw new InterruptedException();
+                throw new InterruptedException("task is cancel");
             }
             if(NumberUtil.getAt(posArr, posIndex) + 1 != offsetIndex) {
                 LockSupport.park();
             }
             //前面线程如果执行报错，这里需要中断该线程
             if(currentThd.isInterrupted()) {
-                throw new InterruptedException();
+                throw new InterruptedException("task is cancel");
             }
             setAt(stack, offsetIndex, null);
             doHandleCASOrderly(swaps, stack0, latch, index, posArr, handler, r);
@@ -383,7 +383,7 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
         synchronized (latch) {
             if(cancel.get()) {
                 stack[index] = null;
-                throw new InterruptedException();
+                throw new InterruptedException("task is cancel");
             }
             int count = batchCount;
             if (count - index == latch.getCount()) {
@@ -403,7 +403,7 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
                 stack[index] = Thread.currentThread();
                 if(cancel.get()) {
                     stack[index] = null;
-                    throw new InterruptedException();
+                    throw new InterruptedException("task is cancel");
                 }
                 try {
                     latch.wait();
@@ -427,7 +427,7 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
     private void doHandleCASOrderly(Thread[] stack, CountDownLatch latch, int index, BiConsumer<R, Integer> handler, R r) throws InterruptedException {
         if(cancel.get()) {
             setAt(stack, index, null);
-            throw new InterruptedException();
+            throw new InterruptedException("task is cancel");
         }
         int next = index + 1;
         int count = batchCount;

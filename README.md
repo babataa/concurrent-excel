@@ -1,13 +1,13 @@
 # concurrent-excel
 流式并发excel导出，支持亿级数据量导出
 
-【功能】注解式列名、格式转换  
+【功能】注解式列名、自定义格式转换  
 【功能】高效率导出，异步任务自动分片，支持多线程分片处理和导出，并能保证导出的数据的有序性  
 【功能】治理超大批量导出的内存和磁盘飙满的风险  
 【功能】支持http直接导出、OSS上传、可查询下载进度等方式
 
-###http直接下载导出
-####自动分页导出
+### http直接下载导出
+#### 自动分页导出
 ```java
 private static void export1() throws InterruptedException {
         //一次批量查2000条，每个文件限制50000条，一个文件只支持一个sheet页
@@ -26,7 +26,7 @@ private static void export1() throws InterruptedException {
         .execute(null, pool);
 }
 ```
-####手动分页导出
+#### 手动分页导出
 ```java
 private static void export3() throws InterruptedException {
         ExcelUtil.buildSimpleHttpDownLoadBuilder(() -> {
@@ -45,7 +45,7 @@ private static void export3() throws InterruptedException {
         .execute(null, ThreadPool.pool);
     }
 ```
-###超大文件上传OSS
+### 超大文件上传OSS
 ```java
 private static void customPageExport() throws InterruptedException {
         ProgressbarContext context = new ProgressbarContext();
