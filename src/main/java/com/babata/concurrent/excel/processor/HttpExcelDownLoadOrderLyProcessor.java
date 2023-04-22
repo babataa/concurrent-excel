@@ -1,6 +1,7 @@
 package com.babata.concurrent.excel.processor;
 
 import com.babata.concurrent.excel.ExcelUtil;
+import com.babata.concurrent.excel.model.ExcelExportAble;
 import com.babata.concurrent.param.BatchParam;
 import com.babata.concurrent.processor.AbstractBatchProcessor;
 import com.babata.concurrent.processor.builder.AbstractBatchProcessorBuilder;
@@ -38,7 +39,7 @@ public class HttpExcelDownLoadOrderLyProcessor<E, R extends Collection<E>> exten
         ExcelUtil.downloadExcel(uploadContext.getTableName() + ".xlsx", workbook);
     }
 
-    public static class HttpExcelDownLoadOrderLyProcessorBuilder extends AbstractBatchProcessorBuilder {
+    public static class HttpExcelDownLoadOrderLyProcessorBuilder extends AbstractBatchProcessorBuilder<ExcelExportAble> {
 
         @Override
         public AbstractBatchProcessor newInstance() {

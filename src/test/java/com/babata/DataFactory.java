@@ -13,9 +13,9 @@ public class DataFactory {
     public static List<ExportModel> get(BatchParam batchParam, int count) {
         List<ExportModel> list = new ArrayList<>();
         for (int i = batchParam.getBatchStart(); i < Math.min(batchParam.getBatchStart() + batchParam.getBatchSize(), count); i++) {
-            if(i == 8737) {
+            /*if(i == 8737) {
                 int a = 1/0;
-            }
+            }*/
             ExportModel model = new ExportModel();
             model.setAge(i);
             model.setName(i + "$Name");

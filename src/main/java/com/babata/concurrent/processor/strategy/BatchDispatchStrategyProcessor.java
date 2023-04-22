@@ -1,7 +1,10 @@
 package com.babata.concurrent.processor.strategy;
 
+import com.babata.concurrent.excel.model.ExcelExportAble;
+import com.babata.concurrent.excel.processor.HttpExcelDownLoadOrderLyProcessor;
 import com.babata.concurrent.param.BatchParam;
 import com.babata.concurrent.processor.AbstractBatchProcessor;
+import com.babata.concurrent.processor.builder.AbstractBatchProcessorBuilder;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 
@@ -28,19 +31,7 @@ public class BatchDispatchStrategyProcessor<E, R extends Collection<E>> extends 
 
     protected BatchDispatchStrategyProcessor(Supplier<Integer> count, Function<BatchParam, R> customSelect, int batchSize) {
         super(count, batchSize);
-        this.customSelect = customSelect;
-        delayInit();
-    }
-
-    protected BatchDispatchStrategyProcessor(int batchSize, Supplier<R> select, BatchDispatchStrategyEnum batchStrategyEnum) {
-        super(batchSize, select);
-        this.batchStrategyEnum = batchStrategyEnum;
-        delayInit();
-    }
-
-    protected BatchDispatchStrategyProcessor(Supplier<Integer> count, Function<BatchParam, R> customSelect, int batchSize, BatchDispatchStrategyEnum batchStrategyEnum) {
-        super(count, batchSize);
-        this.batchStrategyEnum = batchStrategyEnum;
+        this.batchStrategyEnum = BatchDispatchStrategyEnum.CUSTOM;
         this.customSelect = customSelect;
         delayInit();
     }
@@ -77,5 +68,14 @@ public class BatchDispatchStrategyProcessor<E, R extends Collection<E>> extends 
         batchParam.setBatchSize(batchSize0);
         batchParam.setBatchIndex(index);
         return customSelect.apply(batchParam);
+    }
+
+    public static class BatchDispatchStrategyProcessorBuilder<E> extends AbstractBatchProcessorBuilder<E> {
+
+        @Override
+        public AbstractBatchProcessor newInstance() {
+            return new BatchDispatchStrategyProcessor(count, customSelect, batchSize)
+                    .partitionLimit(partitionLimit);
+        }
     }
 }

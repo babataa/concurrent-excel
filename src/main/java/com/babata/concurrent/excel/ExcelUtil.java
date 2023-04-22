@@ -131,7 +131,7 @@ public class ExcelUtil {
      * @param rowLimit 每个sheet页的行数限制（一个文件只支持一个sheet页，多文件则打包成一个zip）
      * @return 处理器实例
      */
-    public static AbstractBatchProcessorBuilder buildSimpleHttpDownLoadBuilder(Supplier<Integer> count, int batchSize, int rowLimit) {
+    public static AbstractBatchProcessorBuilder<ExcelExportAble> buildSimpleHttpDownLoadBuilder(Supplier<Integer> count, int batchSize, int rowLimit) {
         return new HttpExcelDownLoadOrderLyProcessor.HttpExcelDownLoadOrderLyProcessorBuilder()
                 .batchSize(batchSize)
                 .rowLimit(rowLimit)
@@ -172,21 +172,9 @@ public class ExcelUtil {
         }
 
         public AbstractExcelDownLoadOrderLyProcessor(int batchSize, int rowLimit, Supplier<Integer> count, Function<BatchParam, R> customSelect, boolean orderControl) {
-            super(count, customSelect, batchSize, BatchDispatchStrategyEnum.CUSTOM);
+            super(count, customSelect, batchSize);
             this.rowLimit = rowLimit;
             this.orderControl = orderControl;
-            partitionLimit(20);
-        }
-
-        public AbstractExcelDownLoadOrderLyProcessor(int batchSize, Supplier<R> select, int rowLimit) {
-            super(batchSize, select);
-            this.rowLimit = rowLimit;
-            partitionLimit(20);
-        }
-
-        public AbstractExcelDownLoadOrderLyProcessor(int batchSize, int rowLimit, Supplier<Integer> count, Function<BatchParam, R> customSelect) {
-            super(count, customSelect, batchSize, BatchDispatchStrategyEnum.CUSTOM);
-            this.rowLimit = rowLimit;
             partitionLimit(20);
         }
 

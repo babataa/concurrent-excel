@@ -47,7 +47,7 @@ public class HttpExcelTest {
         }, 2000, 50000)
                 .customSelect(batchParam -> {
                     //分页查询（batchIndex：页数，batchSize：每页数量，batchStart：当前页开始的条数）
-                    return new ArrayList<>();
+                    return DataFactory.get(batchParam, count);
                 })
                 //开启分片下载，一片即一个文件，并发任务会片与片之间隔离分配，实现并发无锁方式同时写入多个excel，且能保证写入数据有序性
                 .partition(true)

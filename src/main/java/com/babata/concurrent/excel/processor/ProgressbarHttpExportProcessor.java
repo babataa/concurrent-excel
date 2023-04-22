@@ -2,6 +2,7 @@ package com.babata.concurrent.excel.processor;
 
 import com.babata.concurrent.excel.ExcelUtil;
 import com.babata.concurrent.excel.context.ProgressbarContext;
+import com.babata.concurrent.excel.model.ExcelExportAble;
 import com.babata.concurrent.param.BatchParam;
 import com.babata.concurrent.processor.AbstractBatchProcessor;
 import com.babata.concurrent.processor.builder.AbstractBatchProcessorBuilder;
@@ -82,7 +83,7 @@ public class ProgressbarHttpExportProcessor<E, R extends Collection<E>> extends 
         }
     }
 
-    public static class ProgressbarHttpExportProcessorBuilder extends AbstractBatchProcessorBuilder {
+    public static class ProgressbarHttpExportProcessorBuilder extends AbstractBatchProcessorBuilder<ExcelExportAble> {
 
         protected ProgressbarContext progressbarContext;
 

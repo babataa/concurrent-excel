@@ -13,58 +13,58 @@ import java.util.function.Supplier;
  * BatchProcessor构造器
  * @author zqj
  */
-public abstract class AbstractBatchProcessorBuilder {
+public abstract class AbstractBatchProcessorBuilder<E> {
     protected int batchSize;
     protected int rowLimit;
-    protected Supplier<Collection<? extends ExcelExportAble>> select;
+    protected Supplier<Collection<? extends E>> select;
     protected Supplier<Integer> count;
-    protected Function<BatchParam, Collection<? extends ExcelExportAble>> customSelect;
+    protected Function<BatchParam, Collection<? extends E>> customSelect;
     protected boolean partition;
     protected int partitionLimit;
 
-    public AbstractBatchProcessorBuilder batchSize(int batchSize) {
+    public AbstractBatchProcessorBuilder<E> batchSize(int batchSize) {
         this.batchSize = batchSize;
         return this;
     }
 
-    public AbstractBatchProcessorBuilder rowLimit(int rowLimit) {
+    public AbstractBatchProcessorBuilder<E> rowLimit(int rowLimit) {
         this.rowLimit = rowLimit;
         return this;
     }
 
-    public AbstractBatchProcessorBuilder select(Supplier<Collection<? extends ExcelExportAble>> select) {
+    public AbstractBatchProcessorBuilder<E> select(Supplier<Collection<? extends E>> select) {
         this.select = select;
         return this;
     }
 
-    public AbstractBatchProcessorBuilder count(Supplier<Integer> count) {
+    public AbstractBatchProcessorBuilder<E> count(Supplier<Integer> count) {
         this.count = count;
         return this;
     }
 
-    public AbstractBatchProcessorBuilder partition(boolean partition) {
+    public AbstractBatchProcessorBuilder<E> partition(boolean partition) {
         this.partition = partition;
         return this;
     }
 
-    public AbstractBatchProcessorBuilder partitionLimit(int partitionLimit) {
+    public AbstractBatchProcessorBuilder<E> partitionLimit(int partitionLimit) {
         this.partitionLimit = partitionLimit;
         return this;
     }
 
-    public AbstractBatchProcessorBuilder customSelect(Function<BatchParam, Collection<? extends ExcelExportAble>> customSelect) {
+    public AbstractBatchProcessorBuilder<E> customSelect(Function<BatchParam, Collection<? extends E>> customSelect) {
         this.customSelect = customSelect;
         return this;
     }
 
-    public AbstractBatchProcessor<? extends ExcelExportAble, Collection<? extends ExcelExportAble>> build() {
-        AbstractBatchProcessor<? extends ExcelExportAble, Collection<? extends ExcelExportAble>> processor = newInstance();
+    public AbstractBatchProcessor<? extends E, Collection<? extends E>> build() {
+        AbstractBatchProcessor<? extends E, Collection<? extends E>> processor = newInstance();
         if(partition) {
             processor.partition(rowLimit);
         }
         return processor;
     }
 
-    public abstract AbstractBatchProcessor<? extends ExcelExportAble, Collection<? extends ExcelExportAble>> newInstance();
+    public abstract AbstractBatchProcessor<? extends E, Collection<? extends E>> newInstance();
 
 }

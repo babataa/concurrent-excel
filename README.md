@@ -6,6 +6,10 @@
 【功能】治理超大批量导出的内存和磁盘飙满的风险  
 【功能】支持http直接导出、OSS上传、可查询下载进度等方式
 
+### 注意事项
+分片导出对每行数据通过index计算出应该写在第几个文件、第几行，因此如果查询出的总数和实际查询的数量不一致的话
+，会导致空行或覆盖。若无法保证数据质量，关闭分片可以保证导出数据准确
+
 ### http直接下载导出
 #### 自动分页导出
 ```java
@@ -92,5 +96,3 @@ private static void customPageExport() throws InterruptedException {
         System.out.println(System.currentTimeMillis() - start);
     }
 ```
-
-

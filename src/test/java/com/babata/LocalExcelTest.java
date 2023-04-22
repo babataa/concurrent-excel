@@ -1,6 +1,7 @@
 package com.babata;
 
 import com.babata.concurrent.excel.ExcelUtil;
+import com.babata.concurrent.excel.model.ExcelExportAble;
 import com.babata.concurrent.param.BatchParam;
 import com.babata.concurrent.processor.AbstractBatchProcessor;
 import com.babata.concurrent.processor.builder.AbstractBatchProcessorBuilder;
@@ -61,7 +62,7 @@ public class LocalExcelTest {
             }
         }
 
-        public static class TestExcelDownLoadOrderLyProcessorBuilder extends AbstractBatchProcessorBuilder {
+        public static class TestExcelDownLoadOrderLyProcessorBuilder extends AbstractBatchProcessorBuilder<ExcelExportAble> {
 
             @Override
             public AbstractBatchProcessor newInstance() {
