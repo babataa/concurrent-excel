@@ -7,13 +7,13 @@ import com.babata.concurrent.excel.processor.OssExcelDownLoadOrderLyProcessor;
 import com.babata.concurrent.excel.processor.ProgressbarHttpExportProcessor;
 import com.babata.concurrent.excel.resolve.ColumnContext;
 import com.babata.concurrent.excel.resolve.ColumnHeadResolve;
-import com.babata.concurrent.param.BatchParam;
+import com.babata.concurrent.excel.resolve.ExcelContext;
 import com.babata.concurrent.processor.builder.AbstractBatchProcessorBuilder;
-import com.babata.concurrent.processor.strategy.BatchDispatchStrategyEnum;
 import com.babata.concurrent.processor.strategy.BatchDispatchStrategyProcessor;
-import com.babata.concurrent.util.FileUtils;
-import com.babata.concurrent.util.HttpContextUtil;
-import com.babata.concurrent.util.NumberUtil;
+import com.babata.concurrent.support.BatchParam;
+import com.babata.concurrent.support.util.FileUtils;
+import com.babata.concurrent.support.util.HttpContextUtil;
+import com.babata.concurrent.support.util.NumberUtil;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.util.IOUtils;
@@ -28,12 +28,12 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.*;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -50,7 +50,7 @@ public class ExcelUtil {
      */
     public static final Integer ROW_FLUSH_SIZE=1000;
 
-    private static final Map<Class<? extends ExcelExportAble>, Map<Integer,ColumnContext>> headMapCache = new HashMap<>();
+    private static final Map<Class<? extends ExcelExportAble>, ExcelContext> headMapCache = new HashMap<>();
 
     /**
      * 构建http并发下载excel文件处理器（自动并发分页查询，写入是顺序写入）
@@ -158,7 +158,7 @@ public class ExcelUtil {
      * @param <E>
      * @param <R>
      */
-    public abstract static class AbstractExcelDownLoadOrderLyProcessor<E, R extends Collection<E>> extends BatchDispatchStrategyProcessor<E, R> {
+    public abstract static class AbstractExcelDownLoadOrderLyProcessor<E extends ExcelExportAble, R extends List<E>> extends BatchDispatchStrategyProcessor<E, R> {
 
         private int rowLimit;
 
@@ -194,7 +194,7 @@ public class ExcelUtil {
          * @param doExecute
          * @param uploadContext
          */
-        protected abstract void packageDownLoad(Consumer<BiConsumer<Workbook, Integer>> doExecute, UploadContext uploadContext);
+        protected abstract void packageDownLoad(Function<BiConsumer<Workbook, Integer>, CompletableFuture<Boolean>> doExecute, UploadContext uploadContext);
 
         /**
          * 单文件处理
@@ -234,9 +234,9 @@ public class ExcelUtil {
         @Override
         public void execute(ThreadPoolExecutor e) {
             UploadContext uploadContext = generateContext();
-            WorkbookHolder workbookHolder = new WorkbookHolder();
             prepareWrite(uploadContext);
-            Consumer<BiConsumer<Workbook, Integer>> doExecute = doWorkbook -> {
+            Function<BiConsumer<Workbook, Integer>, CompletableFuture<Boolean>> doExecute = doWorkbook -> {
+                CompletableFuture<Boolean> future = null;
                 try {
                     if(partitionAble) {
                         Map<Integer, WorkbookHolder> wbMap = new ConcurrentHashMap<>();
@@ -245,20 +245,21 @@ public class ExcelUtil {
                                 closeWorkbook(workbookHolder0.workbook);
                             });
                         });
-                        super.batchPartitionExecuteOrderly((r, index) -> {
+                        future = super.batchPartitionExecuteOrderly((r, index) -> {
                             beforeWrite(uploadContext);
-                            WorkbookHolder workbookHolder0 = writeWorkbook(rowLimit, batchSize, index, wbMap, (List<ExcelExportAble>) r, doWorkbook, uploadContext, getTotal());
+                            WorkbookHolder workbookHolder0 = writeWorkbook(rowLimit, batchSize, index, wbMap, r, doWorkbook, uploadContext, getTotal());
                             //下载到本地
                             safeUpload(wbMap, index, doWorkbook, batchSize, rowLimit, orderControl);
                             afterWrite(uploadContext, index, workbookHolder0);
                         }, e);
                     } else {
+                        WorkbookHolder workbookHolder = new WorkbookHolder();
                         addExceptionHandler(exception -> {
                             closeWorkbook(workbookHolder.workbook);
                         });
-                        super.batchExecuteOrderly((r, index) -> {
+                        future = super.batchExecuteOrderly((r, index) -> {
                             beforeWrite(uploadContext);
-                            writeWorkbook(rowLimit, workbookHolder, (List<ExcelExportAble>) r, doWorkbook, uploadContext, false);
+                            writeWorkbook(rowLimit, workbookHolder, r, doWorkbook, uploadContext, false);
                             if (index + 1 == getBatchCount() && workbookHolder.workbook != null) {
                                 //最后一批数据写入成功
                                 doWorkbook.accept(workbookHolder.workbook, uploadContext.fileIndex);
@@ -269,12 +270,13 @@ public class ExcelUtil {
                 } catch (InterruptedException interruptedException) {
                     logger.error("线程中断", interruptedException);
                 }
+                return future;
             };
             if(getTotal() > rowLimit) {
                 //计算文件个数大于1个，需要打包
                 packageDownLoad(doExecute, uploadContext);
             } else {
-                doExecute.accept((workbook, wbIndex) -> {
+                doExecute.apply((workbook, wbIndex) -> {
                     //单个文件输出
                     singeDownLoad(workbook, uploadContext);
                 });
@@ -291,26 +293,26 @@ public class ExcelUtil {
      * @param uploadContext 上下文
      * @param allInMemory 废弃参数，目前全部使用SXXSWorkbook导出
      */
-    public static void writeWorkbook(int rowLimit, WorkbookHolder workbookHolder, List<ExcelExportAble> listData, BiConsumer<Workbook, Integer> uploadWorkbook, UploadContext uploadContext, boolean allInMemory){
+    public static void writeWorkbook(int rowLimit, WorkbookHolder workbookHolder, List<? extends ExcelExportAble> listData, BiConsumer<Workbook, Integer> uploadWorkbook, UploadContext uploadContext, boolean allInMemory){
         //当前workbook
         if(CollectionUtils.isEmpty(listData)) {
             return;
         }
-        Map<Integer, ColumnContext> headMap = getHeadMap(listData.get(0));
-        if(headMap == null) {
+        ExcelContext excelContext = getHeadMap(listData.get(0));
+        if(excelContext == null) {
             throw new RuntimeException("headMap not find");
         }
         //当前sheet，如果需要新建sheet则新建后返回
-        Sheet sheet = createSheetAndHead(workbookHolder, headMap, uploadWorkbook, uploadContext, rowLimit, allInMemory);
+        Sheet sheet = createSheetAndHead(workbookHolder, excelContext, uploadWorkbook, uploadContext, rowLimit, allInMemory);
         //设置内容
         int lastRowNum = sheet.getLastRowNum();
         for (int i = 0; i < listData.size(); i++) {
             if(lastRowNum == rowLimit) {
-                sheet = createSheetAndHead(workbookHolder, headMap, uploadWorkbook, uploadContext, rowLimit, allInMemory);
+                sheet = createSheetAndHead(workbookHolder, excelContext, uploadWorkbook, uploadContext, rowLimit, allInMemory);
                 lastRowNum = sheet.getLastRowNum();
             }
             Row row = sheet.createRow(++lastRowNum);
-            writeContent(i, row, listData, headMap);
+            writeContent(i, row, listData, excelContext);
         }
     }
 
@@ -363,11 +365,11 @@ public class ExcelUtil {
      * @param uploadContext
      * @param total
      */
-    public static WorkbookHolder writeWorkbook(int rowLimit, int pageLimit, int taskIndex, Map<Integer, WorkbookHolder> wbMap, List<ExcelExportAble> listData, BiConsumer<Workbook, Integer> uploadWorkbook, UploadContext uploadContext, int total){
+    public static WorkbookHolder writeWorkbook(int rowLimit, int pageLimit, int taskIndex, Map<Integer, WorkbookHolder> wbMap, List<? extends ExcelExportAble> listData, BiConsumer<Workbook, Integer> uploadWorkbook, UploadContext uploadContext, int total){
         //根据任务标号index计算所属的Workbook
         int wbIndex = taskIndex * pageLimit / rowLimit;
-        Map<Integer, ColumnContext> headMap = getHeadMap(listData.get(0));
-        WorkbookHolder workbookHolder = wbMap.computeIfAbsent(wbIndex, key -> new WorkbookHolder(flushWorkBook(null, headMap, null, uploadContext, rowLimit, wbIndex, false), wbIndex, total, rowLimit, pageLimit));
+        ExcelContext excelContext = getHeadMap(listData.get(0));
+        WorkbookHolder workbookHolder = wbMap.computeIfAbsent(wbIndex, key -> new WorkbookHolder(flushWorkBook(null, excelContext, null, uploadContext, rowLimit, wbIndex, false), wbIndex, total, rowLimit, pageLimit));
         //当前sheet
         Sheet sheet = workbookHolder.workbook.getSheetAt(0);
         //设置内容
@@ -375,7 +377,7 @@ public class ExcelUtil {
         for (int i = 0; i < listData.size(); i++) {
             //已不需要加锁，分片任务代替并发任务
             Row row = sheet.createRow(++cuurentRowNum);
-            writeContent(i, row, listData, headMap);
+            writeContent(i, row, listData, excelContext);
         }
         return workbookHolder;
     }
@@ -385,21 +387,24 @@ public class ExcelUtil {
      * @param index
      * @param row
      * @param listData
-     * @param headMap
+     * @param excelContext
      */
-    private static void writeContent(int index, Row row, List<ExcelExportAble> listData, Map<Integer, ColumnContext> headMap) {
+    private static void writeContent(int index, Row row, List<? extends ExcelExportAble> listData, ExcelContext excelContext) {
         ExcelExportAble abstractExcelBean = listData.get(index);
-        for (int j = 0; j < headMap.size() - 1; j++) {
-            Cell cell = row.createCell(j);
-            ColumnContext column = headMap.get(j);
-            cell.setCellValue(column.getFun().apply(abstractExcelBean));
+        ColumnContext[] columns = excelContext.getColumns();
+        for (int j = 0; j < columns.length; j++) {
+            ColumnContext columnContext = columns[j];
+            if(columnContext != null) {
+                Cell cell = row.createCell(j);
+                cell.setCellValue(columnContext.getFun().apply(abstractExcelBean));
+            }
         }
     }
 
     /**
      * 刷新workbook（如行数达到限制后新建）
      * @param workbook
-     * @param headMap
+     * @param excelContext
      * @param uploadWorkbook
      * @param uploadContext
      * @param rowLimit
@@ -407,13 +412,13 @@ public class ExcelUtil {
      * @param allInMemory
      * @return
      */
-    private static Workbook flushWorkBook(Workbook workbook, Map<Integer, ColumnContext> headMap, BiConsumer<Workbook, Integer> uploadWorkbook, UploadContext uploadContext, int rowLimit, Integer wbIndex, boolean allInMemory) {
+    private static Workbook flushWorkBook(Workbook workbook, ExcelContext excelContext, BiConsumer<Workbook, Integer> uploadWorkbook, UploadContext uploadContext, int rowLimit, Integer wbIndex, boolean allInMemory) {
         if (workbook == null || workbook.getSheetAt(0).getLastRowNum() == rowLimit) {
             if(workbook != null && uploadWorkbook != null) {
                 //文件已写满，需要直接上传上传
                 uploadWorkbook.accept(workbook, wbIndex == null?uploadContext.fileIndex++:wbIndex);
             }
-            uploadContext.tableName = headMap.get(-1).getName();
+            uploadContext.tableName = excelContext.getTableName();
             if(allInMemory) {
                 workbook = new HSSFWorkbook();
             } else {
@@ -423,12 +428,14 @@ public class ExcelUtil {
             //设置标题
             CellStyle style = createStyles(workbook);
             Row titleRow = sheet.createRow(0);
-            int titleSize = headMap.size()- 1;
-            for (int i = 0; i < titleSize; i++) {
-                Cell cell = titleRow.createCell(i);
-                cell.setCellStyle(style);
-                ColumnContext column = headMap.get(i);
-                cell.setCellValue(column.getName());
+            ColumnContext[] columns = excelContext.getColumns();
+            for (int i = 0; i < columns.length; i++) {
+                ColumnContext columnContext = columns[i];
+                if(columnContext != null) {
+                    Cell cell = titleRow.createCell(i);
+                    cell.setCellStyle(style);
+                    cell.setCellValue(columnContext.getName());
+                }
             }
         }
         return workbook;
@@ -437,16 +444,16 @@ public class ExcelUtil {
     /**
      * 可能创建worknook并填充表头
      * @param workbookHolder
-     * @param headMap
+     * @param excelContext
      * @param uploadWorkbook
      * @param uploadContext
      * @param rowLimit
      * @param allInMemory
      * @return
      */
-    private static Sheet createSheetAndHead(WorkbookHolder workbookHolder, Map<Integer, ColumnContext> headMap, BiConsumer<Workbook, Integer> uploadWorkbook, UploadContext uploadContext, int rowLimit, boolean allInMemory) {
+    private static Sheet createSheetAndHead(WorkbookHolder workbookHolder, ExcelContext excelContext, BiConsumer<Workbook, Integer> uploadWorkbook, UploadContext uploadContext, int rowLimit, boolean allInMemory) {
         synchronized (workbookHolder) {
-            workbookHolder.workbook = flushWorkBook(workbookHolder.workbook, headMap, uploadWorkbook, uploadContext, rowLimit, null, allInMemory);
+            workbookHolder.workbook = flushWorkBook(workbookHolder.workbook, excelContext, uploadWorkbook, uploadContext, rowLimit, null, allInMemory);
             return workbookHolder.workbook.getSheetAt(0);
         }
     }
@@ -473,18 +480,18 @@ public class ExcelUtil {
      * @param excelBean
      * @return
      */
-    private static Map<Integer, ColumnContext> getHeadMap(ExcelExportAble excelBean) {
+    private static ExcelContext getHeadMap(ExcelExportAble excelBean) {
         if(excelBean == null) {
             throw new RuntimeException("excelBean is null");
         }
         Class<? extends ExcelExportAble> clazz = excelBean.getClass();
-        Map<Integer, ColumnContext> headMap = headMapCache.get(clazz);
-        if(headMap == null) {
+        ExcelContext excelContext = headMapCache.get(clazz);
+        if(excelContext == null) {
             synchronized (headMapCache) {
-                headMap = headMapCache.computeIfAbsent(clazz, clazz0 -> ColumnHeadResolve.buildHeadMap(clazz0));
+                excelContext = headMapCache.computeIfAbsent(clazz, clazz0 -> ColumnHeadResolve.buildHeadMap(clazz0));
             }
         }
-        return headMap;
+        return excelContext;
     }
 
     /**
@@ -493,7 +500,7 @@ public class ExcelUtil {
      * @param uploadContext
      * @param doDownOrUpload
      */
-    public static void compressAbleExport(Consumer<BiConsumer<Workbook, Integer>> doExecute, UploadContext uploadContext, BiConsumer<UploadContext, String> doDownOrUpload) {
+    public static void compressAbleExport(Function<BiConsumer<Workbook, Integer>, CompletableFuture<Boolean>> doExecute, UploadContext uploadContext, BiConsumer<UploadContext, String> doDownOrUpload) {
         String tempDir = UUID.randomUUID().toString();
         File file = null;
         try {
@@ -510,8 +517,13 @@ public class ExcelUtil {
                     closeWorkbook(workbook);
                 }
             };
-            doExecute.accept(uploadWorkbook);
+            CompletableFuture<Boolean> future = doExecute.apply(uploadWorkbook);
+            future.get();
             doDownOrUpload.accept(uploadContext, tempDir);
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         } finally {
             if(file.exists()) {
                 FileUtils.deleteFile(file);

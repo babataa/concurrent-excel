@@ -3,11 +3,10 @@ package com.babata.concurrent.excel.processor;
 import com.babata.concurrent.excel.ExcelUtil;
 import com.babata.concurrent.excel.context.ProgressbarContext;
 import com.babata.concurrent.excel.model.ExcelExportAble;
-import com.babata.concurrent.param.BatchParam;
-import com.babata.concurrent.processor.AbstractBatchProcessor;
 import com.babata.concurrent.processor.builder.AbstractBatchProcessorBuilder;
+import com.babata.concurrent.support.BatchParam;
 
-import java.util.Collection;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -16,7 +15,7 @@ import java.util.function.Supplier;
  * 提供查询进度的http下载excel
  * @author  zqj
  */
-public class ProgressbarHttpExportProcessor<E, R extends Collection<E>> extends HttpExcelDownLoadOrderLyProcessor<E, R> {
+public class ProgressbarHttpExportProcessor<E extends ExcelExportAble, R extends List<E>> extends HttpExcelDownLoadOrderLyProcessor<E, R> {
 
     private ProgressbarContext progressbarContext;
 
@@ -68,7 +67,7 @@ public class ProgressbarHttpExportProcessor<E, R extends Collection<E>> extends 
         int batchSize0 = batchSize;
         if((taskIndex + 1) * batchSize0 % getRowLimit() == 0 || taskIndex >= total/batchSize0) {
             int finishFileCount = context.getFinishFileCount().incrementAndGet();
-            if(finishFileCount == partition) {
+            if(partitionAble && finishFileCount == partition || !partitionAble && taskIndex + 1 == batchCount) {
                 context.setProgress(100);
             }
         }

@@ -2,6 +2,7 @@ package com.babata.concurrent.excel.resolve;
 
 import com.babata.concurrent.excel.model.ExcelExportAble;
 
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
@@ -19,6 +20,8 @@ public class ColumnContext {
      */
     Function<ExcelExportAble, String> fun;
 
+    BiConsumer<Object, String> parseObjectFun;
+
     public ColumnContext() {
     }
 
@@ -27,11 +30,20 @@ public class ColumnContext {
         this.fun = fun;
     }
 
+    public ColumnContext(String name, BiConsumer<Object, String> parseObjectFun) {
+        this.name = name;
+        this.parseObjectFun = parseObjectFun;
+    }
+
     public String getName() {
         return name;
     }
 
     public Function<ExcelExportAble, String> getFun() {
         return fun;
+    }
+
+    public BiConsumer<Object, String> getParseObjectFun() {
+        return parseObjectFun;
     }
 }

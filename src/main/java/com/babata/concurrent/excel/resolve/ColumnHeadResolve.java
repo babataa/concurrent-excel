@@ -1,19 +1,18 @@
 package com.babata.concurrent.excel.resolve;
 
 import com.babata.concurrent.excel.model.ExcelExportAble;
+import com.babata.concurrent.excel.model.ExcelImportAble;
 import com.babata.concurrent.excel.resolve.annotation.ExcelColumn;
 import com.babata.concurrent.excel.resolve.annotation.TableName;
-import com.babata.concurrent.util.DateUtil;
-import com.babata.concurrent.util.NumberUtil;
-import com.babata.concurrent.util.StringUtils;
+import com.babata.concurrent.support.util.DateUtil;
+import com.babata.concurrent.support.util.NumberUtil;
+import com.babata.concurrent.support.util.ReflexUtil;
+import com.babata.concurrent.support.util.StringUtils;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.format.annotation.NumberFormat;
 
 import java.lang.reflect.Field;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * excel列名和格式转换解析
@@ -28,20 +27,17 @@ public class ColumnHeadResolve {
      * @param excelBean 需要转换的对象
      * @return
      */
-    public static Map<Integer, ColumnContext> buildHeadMap(Class<? extends ExcelExportAble> excelBean) {
-        Map<Integer, ColumnContext> headMap = new HashMap<>(128);
-        TableName tableName = excelBean.getAnnotation(TableName.class);
-        ColumnContext tableContext = new ColumnContext();
-        if(tableName != null && StringUtils.isNotBlank(tableName.value())) {
-            tableContext.name = tableName.value();
-        } else {
-            tableContext.name = "表格" + UUID.randomUUID();
-        }
-        headMap.put(-1, tableContext);
+    public static ExcelContext buildHeadMap(Class<? extends ExcelExportAble> excelBean) {
+        TreeMap<Integer, ColumnContext> headMap = new TreeMap<>();
         Field[] declaredFields = excelBean.getDeclaredFields();
+        int maxIndex = 0;
         for (Field field : declaredFields) {
             ExcelColumn excelColumn = field.getAnnotation(ExcelColumn.class);
             if(excelColumn != null) {
+                int index = excelColumn.index();
+                if(maxIndex < index) {
+                    maxIndex = index;
+                }
                 //自定义转换器
                 CustomConvertor customConvertor = getCustomConvertorInstance(excelColumn.customConvertor());
                 //解析日期格式
@@ -49,7 +45,7 @@ public class ColumnHeadResolve {
                 //格式化数字类型
                 NumberFormat numberFormat = field.getAnnotation(NumberFormat.class);
                 field.setAccessible(true);
-                headMap.put(excelColumn.index(), new ColumnContext(excelColumn.name(), o -> {
+                headMap.put(index, new ColumnContext(excelColumn.name(), o -> {
                     Object object;
                     try {
                         object = field.get(o);
@@ -70,6 +66,52 @@ public class ColumnHeadResolve {
                         }
                     }
                     return object == null?excelColumn.defaultValue():object.toString();
+                }));
+            }
+        }
+        //重新排列index
+        ExcelContext excelContext = new ExcelContext();
+        ColumnContext[] columns = new ColumnContext[maxIndex + 1];
+        TableName tableName = excelBean.getAnnotation(TableName.class);
+        if(tableName != null && StringUtils.isNotBlank(tableName.value())) {
+            excelContext.setTableName(tableName.value());
+        } else {
+            excelContext.setTableName("表格" + UUID.randomUUID());
+        }
+        for (int i = 0; i <= maxIndex; i++) {
+            columns[i] = headMap.get(i);
+        }
+        excelContext.setColumns(columns);
+        return excelContext;
+    }
+
+    public static Map<Object, ColumnContext> buildImportHeadMap(Class<? extends ExcelImportAble> excelBean) {
+        Map<Object, ColumnContext> headMap = new HashMap<>();
+        Field[] declaredFields = excelBean.getDeclaredFields();
+        for (Field field : declaredFields) {
+            ExcelColumn excelColumn = field.getAnnotation(ExcelColumn.class);
+            if(excelColumn != null) {
+                //自定义转换器
+                CustomConvertor customConvertor = getCustomConvertorInstance(excelColumn.customConvertor());
+                //解析日期格式
+                DateTimeFormat dateTimeFormat = field.getAnnotation(DateTimeFormat.class);
+                field.setAccessible(true);
+                headMap.put(excelColumn.index() == -1?excelColumn.name():excelColumn.index(), new ColumnContext(excelColumn.name(), (obj, str) -> {
+                    Object o = null;
+                    if(customConvertor != null) {
+                        //自定义转换
+                        o = customConvertor.parse(str);
+                    } else if(dateTimeFormat != null && Date.class.isAssignableFrom(field.getType())) {
+                        //格式化日期格式
+                        o = DateUtil.parseDate(str, dateTimeFormat.pattern());
+                    } else {
+                        o = ReflexUtil.parseObject(str, field.getType());
+                    }
+                    try {
+                        field.set(obj, o);
+                    } catch (IllegalAccessException e) {
+                        throw new RuntimeException(e);
+                    }
                 }));
             }
         }

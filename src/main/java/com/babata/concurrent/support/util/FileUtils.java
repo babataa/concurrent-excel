@@ -1,6 +1,6 @@
-package com.babata.concurrent.util;
+package com.babata.concurrent.support.util;
 
-import com.babata.concurrent.io.PipedInputStreamWithFinalExceptionCheck;
+import com.babata.concurrent.support.io.PipedInputStreamWithFinalExceptionCheck;
 
 import java.io.*;
 import java.util.zip.ZipEntry;

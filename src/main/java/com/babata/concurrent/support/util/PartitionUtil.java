@@ -1,4 +1,4 @@
-package com.babata.concurrent.util;
+package com.babata.concurrent.support.util;
 
 import java.util.function.Consumer;
 

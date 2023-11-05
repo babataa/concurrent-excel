@@ -5,5 +5,11 @@ package com.babata.concurrent.excel.resolve;
  * @author: zqj
  */
 public interface CustomConvertor<T> {
-    String convert(T t);
+    default String convert(T t) {
+        return null;
+    }
+
+    default T parse(String value) {
+        return null;
+    }
 }

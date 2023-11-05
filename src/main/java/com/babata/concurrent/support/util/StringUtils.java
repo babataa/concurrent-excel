@@ -1,4 +1,4 @@
-package com.babata.concurrent.util;
+package com.babata.concurrent.support.util;
 
 /**
  * @description:
@@ -21,6 +21,14 @@ public class StringUtils {
             }
         }
         return true;
+    }
+
+    /**
+     * 判断是否是数字
+     */
+    public static boolean isNumber(char c) {
+        // ascii 编码
+        return c >= 48 && c <= 57;
     }
 
 }

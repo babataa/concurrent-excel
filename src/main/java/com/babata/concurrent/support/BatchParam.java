@@ -1,4 +1,4 @@
-package com.babata.concurrent.param;
+package com.babata.concurrent.support;
 
 /**
  * @description:

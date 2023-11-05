@@ -2,22 +2,17 @@ package com.babata;
 
 import com.babata.concurrent.excel.ExcelUtil;
 import com.babata.concurrent.excel.model.ExcelExportAble;
-import com.babata.concurrent.param.BatchParam;
 import com.babata.concurrent.processor.AbstractBatchProcessor;
 import com.babata.concurrent.processor.builder.AbstractBatchProcessorBuilder;
+import com.babata.concurrent.support.BatchParam;
 import org.apache.poi.ss.usermodel.Workbook;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -27,7 +22,7 @@ import java.util.function.Supplier;
  */
 public class LocalExcelTest {
 
-    public static class TestExcelDownLoadOrderLyProcessor<E, R extends Collection<E>> extends ExcelUtil.AbstractExcelDownLoadOrderLyProcessor<E, R> {
+    public static class TestExcelDownLoadOrderLyProcessor<E extends ExcelExportAble, R extends List<E>> extends ExcelUtil.AbstractExcelDownLoadOrderLyProcessor<E, R> {
         public TestExcelDownLoadOrderLyProcessor(int batchSize, Supplier<R> select, int rowLimit, boolean orderControl) {
             super(batchSize, select, rowLimit, orderControl);
         }
@@ -37,8 +32,8 @@ public class LocalExcelTest {
         }
 
         @Override
-        protected void packageDownLoad(Consumer<BiConsumer<Workbook, Integer>> doExecute, ExcelUtil.UploadContext uploadContext) {
-            doExecute.accept((workbook, index)  -> {
+        protected void packageDownLoad(Function<BiConsumer<Workbook, Integer>, CompletableFuture<Boolean>> doExecute, ExcelUtil.UploadContext uploadContext) {
+            doExecute.apply((workbook, index)  -> {
                 try {
                     OutputStream outputStream = new FileOutputStream(uploadContext.getTableName() + index + ".xlsx");
                     workbook.write(outputStream);

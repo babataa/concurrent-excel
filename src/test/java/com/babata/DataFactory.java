@@ -1,6 +1,6 @@
 package com.babata;
 
-import com.babata.concurrent.param.BatchParam;
+import com.babata.concurrent.support.BatchParam;
 
 import java.util.ArrayList;
 import java.util.Date;

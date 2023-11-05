@@ -1,4 +1,4 @@
-package com.babata.concurrent.util;
+package com.babata.concurrent.support.util;
 
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;

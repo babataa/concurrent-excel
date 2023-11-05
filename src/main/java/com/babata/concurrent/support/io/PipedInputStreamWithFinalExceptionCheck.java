@@ -1,4 +1,4 @@
-package com.babata.concurrent.io;
+package com.babata.concurrent.support.io;
 
 import java.io.IOException;
 import java.io.InputStream;

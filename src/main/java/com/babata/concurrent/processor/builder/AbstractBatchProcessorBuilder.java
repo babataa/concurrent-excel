@@ -1,8 +1,6 @@
 package com.babata.concurrent.processor.builder;
 
-import com.babata.concurrent.excel.model.ExcelExportAble;
-import com.babata.concurrent.excel.processor.HttpExcelDownLoadOrderLyProcessor;
-import com.babata.concurrent.param.BatchParam;
+import com.babata.concurrent.support.BatchParam;
 import com.babata.concurrent.processor.AbstractBatchProcessor;
 
 import java.util.Collection;

@@ -24,7 +24,7 @@ public @interface ExcelColumn {
      * 排序
      * @return
      */
-    int index() default Integer.MAX_VALUE;
+    int index() default -1;
 
     /**
      * 默认值

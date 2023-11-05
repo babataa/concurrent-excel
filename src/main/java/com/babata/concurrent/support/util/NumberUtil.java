@@ -2,7 +2,7 @@
  * Aliyun.com Inc.
  * Copyright (c) 2004-2021 All Rights Reserved.
  */
-package com.babata.concurrent.util;
+package com.babata.concurrent.support.util;
 
 import sun.misc.Unsafe;
 

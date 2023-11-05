@@ -1,6 +1,6 @@
-package com.babata.concurrent.util;
+package com.babata.concurrent.support.util;
 
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
@@ -32,5 +32,18 @@ public class DateUtil {
             }
         }
         return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime().format(dateTimeFormatter);
+    }
+
+    public static Date parseDate(String dateStr, String pattern) {
+        if(StringUtils.isBlank(dateStr)) {
+            return null;
+        }
+        DateTimeFormatter dateTimeFormatter = DATE_FORMAT.get(pattern);
+        if(dateTimeFormatter == null) {
+            synchronized (DATE_FORMAT) {
+                dateTimeFormatter = DATE_FORMAT.computeIfAbsent(pattern, key -> DateTimeFormatter.ofPattern(key));
+            }
+        }
+        return Date.from(LocalDateTime.parse(dateStr, dateTimeFormatter).atZone(ZoneId.systemDefault()).toInstant());
     }
 }

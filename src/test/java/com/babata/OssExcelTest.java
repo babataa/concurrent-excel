@@ -2,7 +2,7 @@ package com.babata;
 
 import com.babata.concurrent.excel.ExcelUtil;
 import com.babata.concurrent.excel.context.ProgressbarContext;
-import com.babata.concurrent.util.FileUtils;
+import com.babata.concurrent.support.util.FileUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -14,6 +14,14 @@ public class OssExcelTest {
         customPageExport();
         //自动分页OSS导出
         //autoPageOssExport();
+    }
+
+    /**
+     * 自动分页OSS上传
+     */
+    private static void autoPageOssExport() {
+        ProgressbarContext context = new ProgressbarContext();
+        ExcelUtil.buildOssDownLoadHandler(() -> new ArrayList<>(), 2000, 50000, ThreadPool.pool, context).setOssAction(inputStream -> {});
     }
 
     /**
@@ -62,20 +70,6 @@ public class OssExcelTest {
         }
         System.out.println(context.getProgress());
         System.out.println(System.currentTimeMillis() - start);
-    }
-
-    /**
-     * 自动分页OSS上传
-     */
-    private static void autoPageOssExport() {
-        ProgressbarContext context = new ProgressbarContext();
-        ExcelUtil.buildOssDownLoadHandler(() -> {
-            //查库
-            return new ArrayList<>();
-        }, 2000, 50000, ThreadPool.pool, context)
-                .setOssAction(inputStream -> {
-                    //通过inputStream上传OSS操作
-                });
     }
 
 }

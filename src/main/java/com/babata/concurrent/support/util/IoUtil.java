@@ -1,16 +1,13 @@
-package com.babata.concurrent.util;
+package com.babata.concurrent.support.util;
 
-import com.babata.concurrent.io.PipedInputStreamWithFinalExceptionCheck;
+import com.babata.concurrent.support.io.PipedInputStreamWithFinalExceptionCheck;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.util.IOUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * excel导出模板接口

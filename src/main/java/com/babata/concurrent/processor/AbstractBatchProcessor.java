@@ -1,8 +1,8 @@
 package com.babata.concurrent.processor;
 
 import com.babata.concurrent.exception.BatchHandleException;
-import com.babata.concurrent.util.NumberUtil;
-import com.babata.concurrent.util.PartitionUtil;
+import com.babata.concurrent.support.util.NumberUtil;
+import com.babata.concurrent.support.util.PartitionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
@@ -12,6 +12,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -176,49 +177,47 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
      * @param e
      * @throws InterruptedException
      */
-    public void batchExecuteOrderly(BiConsumer<R, Integer> handler, ThreadPoolExecutor e) throws InterruptedException {
+    public CompletableFuture<Boolean> batchExecuteOrderly(BiConsumer<R, Integer> handler, ThreadPoolExecutor e) throws InterruptedException {
         int localBatchCount = batchCount;
         int localPageNum = pageNum;
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
         if(localBatchCount == 1) {
             runSingle(handler, 0);
-            return;
+            future.complete(true);
+            return future;
         }
         Thread[] stack = new Thread[NumberUtil.sizeFor(e.getMaximumPoolSize())];
         indexMask = stack.length - 1;
-        CountDownLatch latch = new CountDownLatch(localBatchCount);
+        AtomicInteger count = new AtomicInteger();
         for (int i = 0; i < localBatchCount; i++) {
             int index = i;
             e.execute(() -> {
-                boolean isOutCountDown = false;
                 try {
                     if(cancel.get()) {
-                        isOutCountDown = true;
                         return;
                     }
                     R r = takeTask(localPageNum + index);
                     if(useCAS) {
-                        doHandleCASOrderly(stack, latch, index, handler, r);
+                        doHandleCASOrderly(stack, index, handler, r);
                     } else {
-                        doHandleOrderly(stack, latch, index, handler, r);
+                        doHandleOrderly(stack, index, handler, r);
                     }
                 } catch (InterruptedException interruptedException){
                     logger.error("上一任务执行失败，本任务中断结束", interruptedException);
-                    isOutCountDown = true;
                 } catch (Exception exception) {
-                    //非BatchProcessorException异常需要外部countDown
-                    isOutCountDown = !(exception instanceof BatchHandleException);
-                    logger.error("任务执行失败", isOutCountDown?exception:exception.getCause());
+                    logger.error("任务执行失败", exception);
                     //取消任务，并终止其他线程
                     doCancel(stack, index, exception);
                     throw exception;
                 } finally {
-                    if(isOutCountDown) {
-                        latch.countDown();
+                    count.incrementAndGet();
+                    if(count.get() == localBatchCount) {
+                        future.complete(true);
                     }
                 }
             });
         }
-        latch.await();
+        return future;
     }
 
     /**
@@ -227,81 +226,65 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
      * @param e
      * @throws InterruptedException
      */
-    public void batchPartitionExecuteOrderly(BiConsumer<R, Integer> handler, ThreadPoolExecutor e) throws InterruptedException {
+    public CompletableFuture<Boolean> batchPartitionExecuteOrderly(BiConsumer<R, Integer> handler, ThreadPoolExecutor e) throws InterruptedException {
         int localBatchCount = batchCount;
         int localPageNum = pageNum;
-        int partitionSize0 = partitionSize;
-        int partition0 = partition;
-        int partitionLimit0 = partitionLimit;
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
         if(localBatchCount == 1) {
             runSingle(handler, 0);
-            return;
+            future.complete(true);
+            return future;
         }
         if(!partitionAble) {
-            batchExecuteOrderly(handler, e);
-            return;
+            return batchExecuteOrderly(handler, e);
         }
-        AtomicInteger[] swaps = new AtomicInteger[partition0];
-        for (int i = 0; i < partition0; i++) {
-            if(i < partition0 - 1) {
-                swaps[i] = new AtomicInteger(partitionSize0);
-            } else {
-                swaps[i] = new AtomicInteger(localBatchCount - partitionSize0 * (partition0 - 1));
-            }
-        }
-        CountDownLatch latch = new CountDownLatch(localBatchCount);
         int size = NumberUtil.sizeFor(e.getMaximumPoolSize());
-        Thread[][] stacks = new Thread[partition0][size];
+        Thread[][] stacks = new Thread[partition][size];
         indexMask = size - 1;
-        int[] posArr = new int[partition0];
+        int[] posArr = new int[partition];
         for (int i = 0; i < posArr.length; i++) {
             posArr[i] = -1;
         }
-        PartitionUtil.partition(localBatchCount, partitionSize0, partitionLimit0 != -1 && partition0>partitionLimit0?partitionLimit0*partitionSize0:partition0*partitionSize0, node -> {
-            e.execute(() -> {
-                boolean isOutCountDown = false;
-                try {
-                    if(cancel.get()) {
-                        isOutCountDown = true;
-                        return;
-                    }
-                    int realIndex = node.index;
-                    R r = takeTask(localPageNum + realIndex);
-                    doHandleCASOrderly(swaps, stacks, latch, realIndex, posArr, handler, r);
-                } catch (InterruptedException interruptedException){
-                    logger.error("上一任务执行失败，本任务中断结束", interruptedException);
-                    isOutCountDown = true;
-                } catch (Exception exception) {
-                    //非BatchProcessorException异常需要外部countDown
-                    isOutCountDown = !(exception instanceof BatchHandleException);
-                    logger.error("任务执行失败", isOutCountDown?exception:exception.getCause());
-                    //取消任务，并终止其他线程
-                    doCancel(stacks[node.index/partitionSize0], node.index % partitionSize0, exception);
-                    throw exception;
-                } finally {
-                    if(isOutCountDown) {
-                        latch.countDown();
-                    }
+        AtomicInteger count = new AtomicInteger();
+        int limit = partitionLimit != -1 && partition > partitionLimit ? partitionLimit * partitionSize : partition * partitionSize;
+        PartitionUtil.partition(localBatchCount, partitionSize, limit, node -> e.execute(() -> {
+            try {
+                if(cancel.get()) {
+                    return;
                 }
-            });
-        });
-        latch.await();
+                int realIndex = node.index;
+                R r = takeTask(localPageNum + realIndex);
+                doHandleCASOrderly(stacks, realIndex, posArr, handler, r);
+            } catch (InterruptedException interruptedException){
+                logger.error("上一任务执行失败，本任务中断结束", interruptedException);
+            } catch (Exception exception) {
+                logger.error("任务执行失败", exception);
+                //取消任务，并终止其他线程
+                doCancel(stacks[node.index/partitionSize], node.index % partitionSize, exception);
+                throw exception;
+            } finally {
+                count.incrementAndGet();
+                if(count.get() == localBatchCount) {
+                    future.complete(true);
+                }
+            }
+        }));
+        return future;
     }
 
-    private void doHandleCASOrderly(AtomicInteger[] swaps, Thread[][] stack0, CountDownLatch latch, int index, int[] posArr, BiConsumer<R, Integer> handler, R r) throws InterruptedException {
+    private void doHandleCASOrderly(Thread[][] stack0, int index, int[] posArr, BiConsumer<R, Integer> handler, R r) throws InterruptedException {
         int partitionSize0 = partitionSize;
         int offsetIndex = index % partitionSize0;
         int posIndex = index / partitionSize0;
         int partition0 = partition;
         Thread[] stack = stack0[posIndex];
-        AtomicInteger swap = swaps[posIndex];
         if(cancel.get()) {
             setAt(stack, offsetIndex, null);
             throw new InterruptedException("task is cancel");
         }
         int next = offsetIndex + 1;
         int count = index/partitionSize0==partition0-1?batchCount-partitionSize0*(partition0-1):partitionSize0;
-        if(count - offsetIndex == swap.get()) {
+        if(offsetIndex - 1 == NumberUtil.getAt(posArr, posIndex)) {
             Thread nextThread;
             try {
                 handler.accept(r, index);
@@ -310,8 +293,6 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
                 doCancel(stack, offsetIndex, e);
                 throw new BatchHandleException(e);
             } finally {
-                swap.compareAndSet(count - offsetIndex, count - next);
-                latch.countDown();
                 NumberUtil.setAt(posArr, posIndex, offsetIndex);
                 if(count > next && (nextThread = getAt(stack, next)) != null) {
                     LockSupport.unpark(nextThread);
@@ -332,7 +313,7 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
                 throw new InterruptedException("task is cancel");
             }
             setAt(stack, offsetIndex, null);
-            doHandleCASOrderly(swaps, stack0, latch, index, posArr, handler, r);
+            doHandleCASOrderly(stack0, index, posArr, handler, r);
         }
     }
 
@@ -377,31 +358,30 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
 
     /**
      * 对结果顺序执行
-     * @param latch
      * @param index
      * @param handler
      * @param r
      * @throws InterruptedException
      */
-    private void doHandleOrderly(Thread[] stack, CountDownLatch latch, int index, BiConsumer<R, Integer> handler, R r) throws InterruptedException {
-        synchronized (latch) {
+    private void doHandleOrderly(Thread[] stack, int index, BiConsumer<R, Integer> handler, R r) throws InterruptedException {
+        synchronized (this) {
             if(cancel.get()) {
                 stack[index] = null;
                 throw new InterruptedException("task is cancel");
             }
             int count = batchCount;
-            if (count - index == latch.getCount()) {
+            if (index - 1 == pos) {
                 try {
                     handler.accept(r, index);
                     if(count > index + 1 && stack[index + 1] != null) {
-                        latch.notifyAll();
+                        this.notifyAll();
                     }
                 } catch (Exception e){
                     //终止其他线程
                     doCancel(stack, index, e);
                     throw new BatchHandleException(e);
                 } finally {
-                    latch.countDown();
+                    pos = index;
                 }
             } else {
                 stack[index] = Thread.currentThread();
@@ -410,41 +390,39 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
                     throw new InterruptedException("task is cancel");
                 }
                 try {
-                    latch.wait();
+                    this.wait();
                 } catch (InterruptedException interruptedException) {
                     stack[index] = null;
                     throw interruptedException;
                 }
-                doHandleOrderly(stack, latch, index, handler, r);
+                doHandleOrderly(stack, index, handler, r);
             }
         }
     }
 
     /**
      * 通过CAS保证对结果的顺序处理
-     * @param latch
      * @param index
      * @param handler
      * @param r
      * @throws InterruptedException
      */
-    private void doHandleCASOrderly(Thread[] stack, CountDownLatch latch, int index, BiConsumer<R, Integer> handler, R r) throws InterruptedException {
+    private void doHandleCASOrderly(Thread[] stack, int index, BiConsumer<R, Integer> handler, R r) throws InterruptedException {
         if(cancel.get()) {
             setAt(stack, index, null);
             throw new InterruptedException("task is cancel");
         }
         int next = index + 1;
         int count = batchCount;
-        if(count - index == latch.getCount()) {
+        if(index - 1 == pos) {
             Thread nextThread;
             try {
                 handler.accept(r, index);
             } catch (Exception e) {
                 //终止其他线程
                 doCancel(stack, index, e);
-                throw new BatchHandleException(e);
+                throw e;
             } finally {
-                latch.countDown();
                 pos = index;
                 if(count > next && (nextThread = getAt(stack, next)) != null) {
                     LockSupport.unpark(nextThread);
@@ -465,7 +443,7 @@ public abstract class AbstractBatchProcessor<E, R extends Collection<E>> {
                 throw new InterruptedException();
             }
             setAt(stack, index, null);
-            doHandleCASOrderly(stack, latch, index, handler, r);
+            doHandleCASOrderly(stack, index, handler, r);
         }
     }
 
